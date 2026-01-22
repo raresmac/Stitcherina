@@ -2,7 +2,7 @@
 
 **Stitcherina** is your cozy digital companion for turning photos and pixel art into beautiful, easy-to-follow stitching patterns. Whether you are working on a large tapestry or a delicate cross-stitch, Stitcherina helps you organize your threads and keep your place without the mess of paper and highlighters.
 
-![Stitcherina Screenshot](description.png)
+![Stitcherina Screenshot](wwwroot/description.webp)
 
 ### Why you'll love Stitcherina:
 
