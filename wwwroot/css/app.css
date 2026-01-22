@@ -1,0 +1,48 @@
+.color-box {
+    width: 20px;
+    height: 20px;
+    display: inline-block;
+    border: 1px solid #000;
+}
+
+#blazor-error-ui {
+    display: none !important;
+}
+
+.stitch-container {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.stitch-row {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+}
+
+    .stitch-row.completed {
+        background-color: #d4edda;
+        opacity: 0.6;
+    }
+
+.row-header {
+    min-width: 180px;
+}
+
+.row-label {
+    margin-left: 10px;
+    font-weight: bold;
+}
+
+.segment {
+    margin-right: 12px;
+    font-family: monospace;
+    font-size: 1.2rem;
+}
+
+.block {
+    margin-left: 2px;
+}

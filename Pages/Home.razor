@@ -1,0 +1,645 @@
+﻿@page "/"
+@using SixLabors.ImageSharp
+@using SixLabors.ImageSharp.PixelFormats
+@using SixLabors.ImageSharp.Processing
+@using System.IO
+@using System.Text.Json
+@using Stitcherina.Models
+@inject IJSRuntime JS
+
+<div class="app-container">
+    <div class="container py-5">
+
+        <!-- Header -->
+        <div class="header-glass mb-5 text-center animate-pop">
+            <h1 class="logo-text">Stitcherina <span>✨</span></h1>
+            <p class="subtitle">Pixel-perfect patterns for every style.</p>
+        </div>
+
+        <!-- Configuration & Controls -->
+        <div class="glass-card mb-5 p-4 animate-slide-up">
+            <div class="row g-4 align-items-end">
+                <div class="col-xl-2 col-md-4">
+                    <label class="cute-label">Grid Size (W × H)</label>
+                    <div class="input-group">
+                        <input type="number" class="cute-input" @bind="targetWidth" />
+                        <span class="divider">×</span>
+                        <input type="number" class="cute-input" @bind="targetHeight" />
+                    </div>
+                </div>
+                <div class="col-xl-2 col-md-4">
+                    <label class="cute-label">Color Merge: @colorTolerance</label>
+                    <input type="range" class="cute-range" min="0" max="10" @bind="colorTolerance" />
+                </div>
+                <div class="col-xl-2 col-md-4">
+                    <label class="cute-label">Stitch Style</label>
+                    <div class="mode-toggle">
+                        <button class="btn-mode @(isTapestryMode ? "active" : "")" @onclick="() => isTapestryMode = true">Tapestry</button>
+                        <button class="btn-mode @(!isTapestryMode ? "active" : "")" @onclick="() => isTapestryMode = false">Cross</button>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <label class="cute-label">1. Source Photo</label>
+                    <InputFile OnChange="HandleFileSelected" class="form-control cute-file" accept="image/*" />
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <label class="cute-label">2. Actions</label>
+                    <div class="d-flex gap-2">
+                        <button class="btn-generate flex-grow-1" @onclick="GeneratePattern">Generate ✨</button>
+                        <button class="btn-save" @onclick="ExportProject" disabled="@(rows == null || !rows.Any())">💾 Save</button>
+                        <label class="btn-load">
+                            📂 Load <InputFile OnChange="ImportProject" hidden accept=".json" />
+                        </label>
+                    </div>
+                </div>
+            </div>
+            @if (isOriginalSize)
+            {
+                <div class="mt-2 text-center">
+                    <span class="badge bg-success animate-pop">✨ Original Pixel Quality Preserved</span>
+                </div>
+            }
+        </div>
+
+        @if (isProcessing)
+        {
+            <div class="loader-wrap">
+                <div class="pixel-spinner"></div>
+                <p>Weaving your threads...</p>
+            </div>
+        }
+        else if (rows != null && rows.Any() && !string.IsNullOrEmpty(previewBase64))
+        {
+            <div class="row g-4 mb-5">
+                <!-- Preview Box -->
+                <div class="col-lg-5 animate-slide-in-left">
+                    <div class="glass-card h-100 p-3">
+                        <div class="card-header-cute mb-3">Pattern Preview</div>
+                        <div class="preview-box">
+                            <img src="@previewBase64" class="pixel-img" alt="Stitcherina preview" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Palette Key -->
+                <div class="col-lg-7 animate-slide-in-right">
+                    <div class="glass-card h-100 p-3">
+                        <div class="card-header-cute d-flex justify-content-between align-items-center mb-3">
+                            <span>Palette Key (@allColors.Count Colors)</span>
+                            <button class="btn-reset" @onclick="ClearAll">Clear All</button>
+                        </div>
+                        <div class="palette-scroll">
+                            <div class="palette-grid">
+                                @foreach (var color in allColors)
+                                {
+                                    <div class="palette-pill">
+                                        <div class="swatch" style="background-color: rgb(@color.R, @color.G, @color.B);">
+                                            <span>@allColors.IndexOf(color)</span>
+                                        </div>
+                                        <div class="palette-info">
+                                            <code>#@color.R.ToString("X2")@color.G.ToString("X2")@color.B.ToString("X2")</code>
+                                            <div class="total-count">@color.TotalStitches stitches</div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pattern Checklist -->
+            <div class="pattern-section animate-slide-up">
+                <h3 class="section-title mb-4 text-center">Stitching Guide</h3>
+                <div class="pattern-scroll">
+                    @foreach (var row in rows)
+                    {
+                        <div class="row-glass @(row.IsCompleted ? "row-done" : "")">
+                            <div class="row-info">
+                                <input type="checkbox" class="cute-check" checked="@row.IsCompleted" @onchange="(args) => ToggleRowManual(row, args)" />
+                                <div class="ms-3">
+                                    <div class="row-num">Row @row.RowNumber</div>
+                                    @if (isTapestryMode)
+                                    {
+                                        <div class="row-dir">@row.DirectionLabel</div>
+                                    }
+                                </div>
+                            </div>
+                            <div class="row-main">
+                                @foreach (var segment in row.Segments)
+                                {
+                                    <div class="seg-pill @(segment.IsStitched ? "active" : "")" @onclick="() => ToggleSegment(row, segment)">
+                                        <span class="seg-id">ID:@segment.ColorIndex</span>
+                                        <span class="seg-val" style="color: @segment.HexColor">
+                                            @segment.Count █
+                                        </span>
+                                        @if (segment.IsStitched)
+                                        {
+                                            <span class="seg-check">✓</span>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .container {
+        max-width: 1400px;
+    }
+
+    .header-glass {
+        padding: 2.5rem;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 30px;
+    }
+
+    .logo-text {
+        font-size: 3.5rem;
+        font-weight: 900;
+        letter-spacing: -2px;
+    }
+
+        .logo-text span {
+            color: #f472b6;
+            text-shadow: 0 0 20px rgba(244,114,182,0.6);
+        }
+
+    .subtitle {
+        opacity: 0.7;
+        font-size: 1.1rem;
+    }
+
+    .glass-card {
+        background: rgba(255,255,255,0.05);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 24px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    }
+
+    .cute-label {
+        color: #38bdf8;
+        font-size: 0.75rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+        display: block;
+    }
+
+    .cute-input {
+        background: rgba(0,0,0,0.3);
+        border: 1px solid rgba(255,255,255,0.1);
+        color: #fff;
+        border-radius: 10px;
+        width: 70px;
+        text-align: center;
+        padding: 5px;
+    }
+
+    .divider {
+        padding: 0 10px;
+        align-self: center;
+        opacity: 0.5;
+    }
+
+    .mode-toggle {
+        display: flex;
+        background: rgba(0,0,0,0.3);
+        border-radius: 12px;
+        padding: 4px;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .btn-mode {
+        flex: 1;
+        border: none;
+        background: transparent;
+        color: #fff;
+        font-size: 0.8rem;
+        padding: 6px;
+        border-radius: 8px;
+        transition: 0.3s;
+    }
+
+        .btn-mode.active {
+            background: #38bdf8;
+            color: #000;
+            font-weight: bold;
+        }
+
+    .btn-generate {
+        background: linear-gradient(135deg, #38bdf8, #818cf8);
+        border: none;
+        border-radius: 12px;
+        color: #000;
+        font-weight: bold;
+        padding: 12px;
+        transition: 0.3s;
+    }
+
+        .btn-generate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(56,189,248,0.5);
+        }
+
+    .btn-save, .btn-load, .btn-reset {
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.1);
+        color: #fff;
+        padding: 10px 18px;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: 0.2s;
+        font-size: 0.9rem;
+    }
+
+        .btn-save:hover, .btn-load:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+    .preview-box {
+        height: 400px;
+        width: 100%;
+        background: #000;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .pixel-img {
+        image-rendering: pixelated;
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+
+    /* Updated Palette UI */
+    .palette-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 10px;
+    }
+
+    .palette-pill {
+        background: rgba(0,0,0,0.2);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 15px;
+        padding: 8px;
+        display: flex;
+        align-items: center;
+    }
+
+    .swatch {
+        min-width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        box-shadow: 0 0 10px rgba(255,255,255,0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px #000;
+    }
+
+    .palette-info {
+        margin-left: 10px;
+        line-height: 1.2;
+    }
+
+    .total-count {
+        font-size: 0.65rem;
+        color: #38bdf8;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+
+    .seg-val {
+        font-family: 'Courier New', Courier, monospace;
+        font-weight: 900;
+        font-size: 1.3rem;
+        text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 0 8px rgba(255,255,255,0.5);
+    }
+
+    .row-glass {
+        display: flex;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 20px;
+        padding: 15px;
+        margin-bottom: 12px;
+        transition: 0.3s;
+    }
+
+    .row-info {
+        min-width: 180px;
+        display: flex;
+        align-items: center;
+        border-right: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .row-main {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding-left: 20px;
+    }
+
+    .row-done {
+        opacity: 0.15;
+        filter: grayscale(1);
+        transform: scale(0.98);
+    }
+
+    .seg-pill {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 12px;
+        padding: 6px 14px;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        transition: 0.2s;
+        position: relative;
+    }
+
+        .seg-pill:hover {
+            transform: scale(1.05);
+            background: rgba(255,255,255,0.1);
+        }
+
+        .seg-pill.active {
+            background: rgba(56, 189, 248, 0.2);
+            border-color: #38bdf8;
+        }
+
+    .seg-id {
+        font-size: 0.65rem;
+        font-weight: 900;
+        color: #fff;
+        margin-bottom: -4px;
+        text-shadow: 0 0 4px #000;
+    }
+
+    .seg-check {
+        position: absolute;
+        top: -6px;
+        right: -6px;
+        background: #28a745;
+        color: #fff;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        font-size: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    }
+
+    .pixel-spinner {
+        width: 45px;
+        height: 45px;
+        background: #38bdf8;
+        margin: 0 auto 20px;
+        animation: spin 0.8s infinite steps(4);
+    }
+
+    @@keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @@keyframes pop {
+        from {
+            transform: scale(0.9);
+            opacity: 0;
+        }
+
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+</style>
+
+@code {
+    int targetWidth = 40, targetHeight = 40, colorTolerance = 2;
+    bool isProcessing = false, isOriginalSize = false;
+    bool isTapestryMode = true;
+    byte[]? originalImageBytes;
+    string? previewBase64 = "";
+    List<StitchRow> rows = new();
+
+    // PaletteColor class now includes TotalStitches
+    public class PaletteColor
+    {
+        public byte R { get; set; }
+        public byte G { get; set; }
+        public byte B { get; set; }
+        public int TotalStitches { get; set; }
+    }
+    List<PaletteColor> allColors = new();
+
+    async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            using var stream = e.File.OpenReadStream(maxAllowedSize: 1024 * 1024 * 20);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            originalImageBytes = ms.ToArray();
+            await GeneratePattern();
+        }
+        catch (Exception ex) { Console.WriteLine("Selection error: " + ex.Message); }
+    }
+
+    async Task GeneratePattern()
+    {
+        if (originalImageBytes == null) return;
+        isProcessing = true; StateHasChanged();
+        await Task.Delay(200);
+
+        try
+        {
+            rows.Clear(); allColors.Clear();
+            using var image = Image.Load<Rgba32>(originalImageBytes);
+
+            if (image.Width == targetWidth && image.Height == targetHeight) isOriginalSize = true;
+            else
+            {
+                isOriginalSize = false;
+                image.Mutate(x => x.Resize(new ResizeOptions { Size = new Size(targetWidth, targetHeight), Mode = ResizeMode.Stretch, Sampler = KnownResamplers.NearestNeighbor }));
+            }
+
+            // Normalization
+            for (int y = 0; y < image.Height; y++)
+            {
+                for (int x = 0; x < image.Width; x++)
+                {
+                    var p = image[x, y];
+                    int match = FindBestColorMatch(p.R, p.G, p.B);
+                    if (match == -1)
+                    {
+                        allColors.Add(new PaletteColor { R = p.R, G = p.G, B = p.B, TotalStitches = 1 });
+                    }
+                    else
+                    {
+                        allColors[match].TotalStitches++;
+                        var m = allColors[match];
+                        image[x, y] = new Rgba32(m.R, m.G, m.B);
+                    }
+                }
+            }
+
+            UpdatePreviewUi(image);
+
+            for (int y = 0; y < image.Height; y++)
+            {
+                bool shouldReverse = isTapestryMode && (y % 2 != 0);
+                var row = new StitchRow
+                {
+                    RowNumber = y + 1,
+                    DirectionLabel = shouldReverse ? "Right to Left ←" : (isTapestryMode ? "Left to Right →" : "")
+                };
+
+                List<int> pixelIds = new();
+                for (int x = 0; x < image.Width; x++)
+                {
+                    var p = image[x, y];
+                    pixelIds.Add(allColors.FindIndex(c => c.R == p.R && c.G == p.G && c.B == p.B));
+                }
+                int cur = 0;
+                while (cur < pixelIds.Count)
+                {
+                    int id = pixelIds[cur]; int cnt = 1;
+                    while (cur + 1 < pixelIds.Count && pixelIds[cur + 1] == id) { cnt++; cur++; }
+                    var col = allColors[id];
+                    row.Segments.Add(new ColorSegment { ColorIndex = id, Count = cnt, HexColor = $"rgb({col.R},{col.G},{col.B})", Rgb = (col.R, col.G, col.B) });
+                    cur++;
+                }
+                if (shouldReverse) row.Segments.Reverse();
+                rows.Add(row);
+            }
+        }
+        catch (Exception ex) { Console.WriteLine("Generate error: " + ex.Message); }
+        isProcessing = false;
+    }
+
+    void UpdatePreviewUi(Image<Rgba32> image)
+    {
+        try
+        {
+            int zoom = 15;
+            using var zoomed = image.Clone(x => x.Resize(targetWidth * zoom, targetHeight * zoom, KnownResamplers.NearestNeighbor));
+            using var ms = new MemoryStream();
+            zoomed.SaveAsPng(ms);
+            previewBase64 = $"data:image/png;base64,{Convert.ToBase64String(ms.ToArray())}";
+        }
+        catch { }
+    }
+
+    void ReconstructFromData()
+    {
+        if (targetWidth <= 0 || targetHeight <= 0) return;
+        try
+        {
+            // Reset counts for PaletteColors
+            foreach (var c in allColors) c.TotalStitches = 0;
+
+            using var image = new Image<Rgba32>(targetWidth, targetHeight);
+            foreach (var row in rows)
+            {
+                int xOffset = 0;
+                var segments = row.DirectionLabel.Contains("←") ? row.Segments.AsEnumerable().Reverse() : row.Segments;
+                foreach (var seg in segments)
+                {
+                    var col = allColors[seg.ColorIndex];
+                    col.TotalStitches += seg.Count; // Re-calculate count from segment data
+                    for (int i = 0; i < seg.Count; i++)
+                    {
+                        int safeX = Math.Clamp(xOffset++, 0, targetWidth - 1);
+                        int safeY = Math.Clamp(row.RowNumber - 1, 0, targetHeight - 1);
+                        image[safeX, safeY] = new Rgba32(col.R, col.G, col.B);
+                    }
+                }
+            }
+            UpdatePreviewUi(image);
+        }
+        catch { }
+    }
+
+    int FindBestColorMatch(byte r, byte g, byte b)
+    {
+        double maxDist = colorTolerance * 12.0;
+        for (int i = 0; i < allColors.Count; i++)
+        {
+            double dist = Math.Sqrt(Math.Pow(r - allColors[i].R, 2) + Math.Pow(g - allColors[i].G, 2) + Math.Pow(b - allColors[i].B, 2));
+            if (dist <= maxDist) return i;
+        }
+        return -1;
+    }
+
+    async Task ExportProject()
+    {
+        try
+        {
+            var now = DateTime.Now;
+            string defaultName = $"Stitcherina_{now:yyyy-MM-dd_HH-mm-ss}.json";
+            var state = new { Width = targetWidth, Height = targetHeight, Tolerance = colorTolerance, Mode = isTapestryMode, Palette = allColors, Rows = rows };
+            var json = JsonSerializer.Serialize(state);
+            await JS.InvokeVoidAsync("downloadFile", defaultName, Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(json)));
+        }
+        catch { }
+    }
+
+    async Task ImportProject(InputFileChangeEventArgs e)
+    {
+        isProcessing = true; StateHasChanged();
+        try
+        {
+            using var stream = e.File.OpenReadStream(maxAllowedSize: 1024 * 1024 * 5);
+            using var reader = new StreamReader(stream);
+            var json = await reader.ReadToEndAsync();
+            var doc = JsonDocument.Parse(json).RootElement;
+            targetWidth = doc.GetProperty("Width").GetInt32();
+            targetHeight = doc.GetProperty("Height").GetInt32();
+            colorTolerance = doc.GetProperty("Tolerance").GetInt32();
+            if (doc.TryGetProperty("Mode", out var modeProp)) isTapestryMode = modeProp.GetBoolean();
+            allColors = JsonSerializer.Deserialize<List<PaletteColor>>(doc.GetProperty("Palette").GetRawText()) ?? new();
+            rows = JsonSerializer.Deserialize<List<StitchRow>>(doc.GetProperty("Rows").GetRawText()) ?? new();
+            ReconstructFromData();
+        }
+        catch (Exception ex) { Console.WriteLine("Import error: " + ex.Message); }
+        isProcessing = false;
+        StateHasChanged();
+    }
+
+    void ToggleSegment(StitchRow row, ColorSegment segment)
+    {
+        segment.IsStitched = !segment.IsStitched;
+        row.IsCompleted = row.Segments.All(s => s.IsStitched);
+    }
+
+    void ToggleRowManual(StitchRow row, ChangeEventArgs args)
+    {
+        bool val = (bool)(args.Value ?? false);
+        row.IsCompleted = val;
+        foreach (var s in row.Segments) s.IsStitched = val;
+    }
+
+    void ClearAll() { rows.Clear(); allColors.Clear(); previewBase64 = ""; originalImageBytes = null; isOriginalSize = false; }
+}
