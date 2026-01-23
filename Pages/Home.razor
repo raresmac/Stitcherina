@@ -13,12 +13,13 @@
         <!-- Header -->
         <div class="header-glass mb-5 text-center animate-pop">
             <h1 class="logo-text">Stitcherina <span>✨</span></h1>
-            <p class="subtitle">Pixel-perfect patterns for every style.</p>
+            <p class="subtitle">Smart patterns for smart stitchers.</p>
         </div>
 
         <!-- Configuration & Controls -->
         <div class="glass-card mb-5 p-4 animate-slide-up">
-            <div class="row g-4 align-items-end">
+            <div class="row g-4 align-items-center">
+                <!-- Grid Size -->
                 <div class="col-xl-2 col-md-4">
                     <label class="cute-label">Grid Size (W × H)</label>
                     <div class="input-group">
@@ -27,10 +28,14 @@
                         <input type="number" class="cute-input" @bind="targetHeight" />
                     </div>
                 </div>
+
+                <!-- Color Tolerance -->
                 <div class="col-xl-2 col-md-4">
                     <label class="cute-label">Color Merge: @colorTolerance</label>
                     <input type="range" class="cute-range" min="0" max="10" @bind="colorTolerance" />
                 </div>
+
+                <!-- Mode Toggle -->
                 <div class="col-xl-2 col-md-4">
                     <label class="cute-label">Stitch Style</label>
                     <div class="mode-toggle">
@@ -38,24 +43,31 @@
                         <button class="btn-mode @(!isTapestryMode ? "active" : "")" @onclick="() => isTapestryMode = false">Cross</button>
                     </div>
                 </div>
+
+                <!-- File Selection -->
                 <div class="col-xl-3 col-md-6">
                     <label class="cute-label">1. Source Photo</label>
                     <InputFile OnChange="HandleFileSelected" class="form-control cute-file" accept="image/*" />
                 </div>
+
+                <!-- Combined Action Buttons -->
                 <div class="col-xl-3 col-md-6">
-                    <label class="cute-label">2. Actions</label>
-                    <div class="d-flex gap-2">
-                        <button class="btn-generate flex-grow-1" @onclick="GeneratePattern">Generate ✨</button>
-                        <button class="btn-save" @onclick="ExportProject" disabled="@(rows == null || !rows.Any())">💾 Save</button>
-                        <label class="btn-load">
-                            📂 Load <InputFile OnChange="ImportProject" hidden accept=".json" />
-                        </label>
+                    <label class="cute-label text-center">2. Actions</label>
+                    <div class="actions-container">
+                        <button class="btn-generate" @onclick="GeneratePattern">Generate ✨</button>
+                        <div class="stack-container">
+                            <button class="btn-mini btn-save" @onclick="ExportProject" disabled="@(rows == null || !rows.Any())">💾 Save</button>
+                            <label class="btn-mini btn-load">
+                                📂 Load <InputFile OnChange="ImportProject" hidden accept=".json" />
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>
+
             @if (isOriginalSize)
             {
-                <div class="mt-2 text-center">
+                <div class="mt-3 text-center">
                     <span class="badge bg-success animate-pop">✨ Original Pixel Quality Preserved</span>
                 </div>
             }
@@ -71,7 +83,7 @@
         else if (rows != null && rows.Any() && !string.IsNullOrEmpty(previewBase64))
         {
             <div class="row g-4 mb-5">
-                <!-- Preview Box -->
+                <!-- Preview -->
                 <div class="col-lg-5 animate-slide-in-left">
                     <div class="glass-card h-100 p-3">
                         <div class="card-header-cute mb-3">Pattern Preview</div>
@@ -81,7 +93,7 @@
                     </div>
                 </div>
 
-                <!-- Palette Key -->
+                <!-- Palette -->
                 <div class="col-lg-7 animate-slide-in-right">
                     <div class="glass-card h-100 p-3">
                         <div class="card-header-cute d-flex justify-content-between align-items-center mb-3">
@@ -98,7 +110,7 @@
                                         </div>
                                         <div class="palette-info">
                                             <code>#@color.R.ToString("X2")@color.G.ToString("X2")@color.B.ToString("X2")</code>
-                                            <div class="total-count">@color.TotalStitches stitches</div>
+                                            <div class="total-count">@color.TotalStitches px</div>
                                         </div>
                                     </div>
                                 }
@@ -108,47 +120,46 @@
                 </div>
             </div>
 
-            <!-- Pattern Checklist -->
+            <!-- Main Pattern Guide -->
             <div class="pattern-section animate-slide-up">
                 <h3 class="section-title mb-4 text-center">Stitching Guide</h3>
-                <div class="pattern-scroll">
-                    @foreach (var row in rows)
-                    {
-                        <div class="row-glass @(row.IsCompleted ? "row-done" : "")">
-                            <div class="row-info">
-                                <input type="checkbox" class="cute-check" checked="@row.IsCompleted" @onchange="(args) => ToggleRowManual(row, args)" />
-                                <div class="ms-3">
-                                    <div class="row-num">Row @row.RowNumber</div>
-                                    @if (isTapestryMode)
-                                    {
-                                        <div class="row-dir">@row.DirectionLabel</div>
-                                    }
-                                </div>
-                            </div>
-                            <div class="row-main">
-                                @foreach (var segment in row.Segments)
+                @foreach (var row in rows)
+                {
+                    <div class="row-glass @(row.IsCompleted ? "row-done" : "")">
+                        <div class="row-info">
+                            <input type="checkbox" class="cute-check" checked="@row.IsCompleted" @onchange="(args) => ToggleRowManual(row, args)" />
+                            <div class="ms-3">
+                                <div class="row-num">Row @row.RowNumber</div>
+                                @if (isTapestryMode)
                                 {
-                                    <div class="seg-pill @(segment.IsStitched ? "active" : "")" @onclick="() => ToggleSegment(row, segment)">
-                                        <span class="seg-id">ID:@segment.ColorIndex</span>
-                                        <span class="seg-val" style="color: @segment.HexColor">
-                                            @segment.Count █
-                                        </span>
-                                        @if (segment.IsStitched)
-                                        {
-                                            <span class="seg-check">✓</span>
-                                        }
-                                    </div>
+                                    <div class="row-dir">@row.DirectionLabel</div>
                                 }
                             </div>
                         </div>
-                    }
-                </div>
+                        <div class="row-main">
+                            @foreach (var segment in row.Segments)
+                            {
+                                <div class="seg-pill @(segment.IsStitched ? "active" : "")" @onclick="() => ToggleSegment(row, segment)">
+                                    <span class="seg-id">ID:@segment.ColorIndex</span>
+                                    <span class="seg-val" style="color: @segment.HexColor">
+                                        @segment.Count █
+                                    </span>
+                                    @if (segment.IsStitched)
+                                    {
+                                        <span class="seg-check">✓</span>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
             </div>
         }
     </div>
 </div>
 
 <style>
+    /* Layout & Base */
     .container {
         max-width: 1400px;
     }
@@ -184,6 +195,7 @@
         box-shadow: 0 10px 40px rgba(0,0,0,0.3);
     }
 
+    /* Controls Alignment */
     .cute-label {
         color: #38bdf8;
         font-size: 0.75rem;
@@ -200,11 +212,11 @@
         border-radius: 10px;
         width: 70px;
         text-align: center;
-        padding: 5px;
+        padding: 6px;
     }
 
     .divider {
-        padding: 0 10px;
+        padding: 0 8px;
         align-self: center;
         opacity: 0.5;
     }
@@ -234,13 +246,21 @@
             font-weight: bold;
         }
 
+    /* ACTION BUTTONS RESTRUCTURE */
+    .actions-container {
+        display: flex;
+        gap: 10px;
+        height: 50px;
+    }
+
     .btn-generate {
+        flex: 2;
+        height: 100%;
         background: linear-gradient(135deg, #38bdf8, #818cf8);
         border: none;
         border-radius: 12px;
         color: #000;
-        font-weight: bold;
-        padding: 12px;
+        font-weight: 900;
         transition: 0.3s;
     }
 
@@ -249,21 +269,39 @@
             box-shadow: 0 0 20px rgba(56,189,248,0.5);
         }
 
-    .btn-save, .btn-load, .btn-reset {
-        background: rgba(255,255,255,0.1);
-        border: 1px solid rgba(255,255,255,0.1);
-        color: #fff;
-        padding: 10px 18px;
-        border-radius: 12px;
-        cursor: pointer;
-        transition: 0.2s;
-        font-size: 0.9rem;
+    .stack-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        height: 100%;
     }
 
-        .btn-save:hover, .btn-load:hover {
+    .btn-mini {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 8px;
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+
+        .btn-mini:hover {
             background: rgba(255,255,255,0.2);
         }
 
+        .btn-mini:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+    /* Preview & Palette */
     .preview-box {
         height: 400px;
         width: 100%;
@@ -283,7 +321,6 @@
         object-fit: contain;
     }
 
-    /* Updated Palette UI */
     .palette-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
@@ -304,7 +341,6 @@
         height: 32px;
         border-radius: 50%;
         border: 2px solid #fff;
-        box-shadow: 0 0 10px rgba(255,255,255,0.3);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -325,6 +361,7 @@
         text-transform: uppercase;
     }
 
+    /* Pattern Rows & Segments */
     .seg-val {
         font-family: 'Courier New', Courier, monospace;
         font-weight: 900;
@@ -374,11 +411,6 @@
         transition: 0.2s;
         position: relative;
     }
-
-        .seg-pill:hover {
-            transform: scale(1.05);
-            background: rgba(255,255,255,0.1);
-        }
 
         .seg-pill.active {
             background: rgba(56, 189, 248, 0.2);
@@ -444,7 +476,6 @@
     string? previewBase64 = "";
     List<StitchRow> rows = new();
 
-    // PaletteColor class now includes TotalStitches
     public class PaletteColor
     {
         public byte R { get; set; }
@@ -485,7 +516,6 @@
                 image.Mutate(x => x.Resize(new ResizeOptions { Size = new Size(targetWidth, targetHeight), Mode = ResizeMode.Stretch, Sampler = KnownResamplers.NearestNeighbor }));
             }
 
-            // Normalization
             for (int y = 0; y < image.Height; y++)
             {
                 for (int x = 0; x < image.Width; x++)
@@ -557,9 +587,7 @@
         if (targetWidth <= 0 || targetHeight <= 0) return;
         try
         {
-            // Reset counts for PaletteColors
             foreach (var c in allColors) c.TotalStitches = 0;
-
             using var image = new Image<Rgba32>(targetWidth, targetHeight);
             foreach (var row in rows)
             {
@@ -568,7 +596,7 @@
                 foreach (var seg in segments)
                 {
                     var col = allColors[seg.ColorIndex];
-                    col.TotalStitches += seg.Count; // Re-calculate count from segment data
+                    col.TotalStitches += seg.Count;
                     for (int i = 0; i < seg.Count; i++)
                     {
                         int safeX = Math.Clamp(xOffset++, 0, targetWidth - 1);

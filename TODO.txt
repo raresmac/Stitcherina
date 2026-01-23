@@ -1,0 +1,1 @@
+- make the pixel art interactable (add new colors to palettes or use the existing ones)
