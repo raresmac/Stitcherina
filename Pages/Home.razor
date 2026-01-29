@@ -7,19 +7,18 @@
 @using Stitcherina.Models
 @inject IJSRuntime JS
 
-<div class="app-container">
+<div class="app-container" @onmouseup="() => isMouseDown = false">
     <div class="container py-5">
 
         <!-- Header -->
         <div class="header-glass mb-5 text-center animate-pop">
             <h1 class="logo-text">Stitcherina <span>✨</span></h1>
-            <p class="subtitle">Smart patterns for smart stitchers.</p>
+            <p class="subtitle">Pixel-perfect patterns with a pro editor.</p>
         </div>
 
         <!-- Configuration & Controls -->
         <div class="glass-card mb-5 p-4 animate-slide-up">
             <div class="row g-4 align-items-center">
-                <!-- Grid Size -->
                 <div class="col-xl-2 col-md-4">
                     <label class="cute-label">Grid Size (W × H)</label>
                     <div class="input-group">
@@ -28,14 +27,10 @@
                         <input type="number" class="cute-input" @bind="targetHeight" />
                     </div>
                 </div>
-
-                <!-- Color Tolerance -->
                 <div class="col-xl-2 col-md-4">
                     <label class="cute-label">Color Merge: @colorTolerance</label>
                     <input type="range" class="cute-range" min="0" max="10" @bind="colorTolerance" />
                 </div>
-
-                <!-- Mode Toggle -->
                 <div class="col-xl-2 col-md-4">
                     <label class="cute-label">Stitch Style</label>
                     <div class="mode-toggle">
@@ -43,58 +38,47 @@
                         <button class="btn-mode @(!isTapestryMode ? "active" : "")" @onclick="() => isTapestryMode = false">Cross</button>
                     </div>
                 </div>
-
-                <!-- File Selection -->
                 <div class="col-xl-3 col-md-6">
                     <label class="cute-label">1. Source Photo</label>
                     <InputFile OnChange="HandleFileSelected" class="form-control cute-file" accept="image/*" />
                 </div>
-
-                <!-- Combined Action Buttons -->
                 <div class="col-xl-3 col-md-6">
-                    <label class="cute-label text-center">2. Actions</label>
+                    <label class="cute-label">2. Actions</label>
                     <div class="actions-container">
                         <button class="btn-generate" @onclick="GeneratePattern">Generate ✨</button>
                         <div class="stack-container">
-                            <button class="btn-mini btn-save" @onclick="ExportProject" disabled="@(rows == null || !rows.Any())">💾 Save</button>
-                            <label class="btn-mini btn-load">
-                                📂 Load <InputFile OnChange="ImportProject" hidden accept=".json" />
-                            </label>
+                            <button class="btn-mini" @onclick="ExportProject" disabled="@(rows == null || !rows.Any())">💾 Save</button>
+                            <label class="btn-mini m-0">📂 Load <InputFile OnChange="ImportProject" hidden accept=".json" /></label>
                         </div>
                     </div>
                 </div>
             </div>
-
-            @if (isOriginalSize)
-            {
-                <div class="mt-3 text-center">
-                    <span class="badge bg-success animate-pop">✨ Original Pixel Quality Preserved</span>
-                </div>
-            }
         </div>
 
         @if (isProcessing)
         {
             <div class="loader-wrap">
                 <div class="pixel-spinner"></div>
-                <p>Weaving your threads...</p>
+                <p>Processing pixels...</p>
             </div>
         }
         else if (rows != null && rows.Any() && !string.IsNullOrEmpty(previewBase64))
         {
             <div class="row g-4 mb-5">
                 <!-- Preview -->
-                <div class="col-lg-5 animate-slide-in-left">
+                <div class="col-lg-5">
                     <div class="glass-card h-100 p-3">
-                        <div class="card-header-cute mb-3">Pattern Preview</div>
-                        <div class="preview-box">
-                            <img src="@previewBase64" class="pixel-img" alt="Stitcherina preview" />
+                        <div class="card-header-cute mb-1 text-center">Pattern Preview</div>
+                        <p class="ultra-small text-muted mb-3 text-center">Click the image to edit pixels ✨</p>
+                        <div class="preview-box clickable shadow-glow" @onclick="OpenEditor">
+                            <img src="@previewBase64" class="pixel-img" alt="Click to edit" />
+                            <div class="edit-overlay-hint">Open Editor</div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Palette -->
-                <div class="col-lg-7 animate-slide-in-right">
+                <div class="col-lg-7">
                     <div class="glass-card h-100 p-3">
                         <div class="card-header-cute d-flex justify-content-between align-items-center mb-3">
                             <span>Palette Key (@allColors.Count Colors)</span>
@@ -110,7 +94,7 @@
                                         </div>
                                         <div class="palette-info">
                                             <code>#@color.R.ToString("X2")@color.G.ToString("X2")@color.B.ToString("X2")</code>
-                                            <div class="total-count">@color.TotalStitches px</div>
+                                            <div class="total-count">@color.TotalStitches stitches</div>
                                         </div>
                                     </div>
                                 }
@@ -120,7 +104,6 @@
                 </div>
             </div>
 
-            <!-- Main Pattern Guide -->
             <div class="pattern-section animate-slide-up">
                 <h3 class="section-title mb-4 text-center">Stitching Guide</h3>
                 @foreach (var row in rows)
@@ -158,8 +141,100 @@
     </div>
 </div>
 
+<!-- EDITOR OVERLAY -->
+@if (isEditorOpen)
+{
+    <div class="editor-backdrop animate-pop" @onmouseup="() => isMouseDown = false">
+        <div class="editor-window shadow-glow">
+            <div class="editor-sidebar">
+                <h4 class="logo-text-small mb-1">Pixel Editor</h4>
+
+                <div class="tool-section mb-4 mt-3">
+                    <label class="cute-label">Zoom: @(zoomLevel)%</label>
+                    <input type="range" class="cute-range" min="10" max="500" @bind="zoomLevel" />
+                </div>
+
+                <div class="tool-section mb-4">
+                    <label class="cute-label">Tool</label>
+                    <div class="btn-group w-100 shadow-sm">
+                        <button class="btn btn-sm @(activeTool == "pencil" ? "btn-primary" : "btn-outline-primary")" @onclick='() => activeTool = "pencil"'>✏️</button>
+                        <button class="btn btn-sm @(activeTool == "bucket" ? "btn-primary" : "btn-outline-primary")" @onclick='() => activeTool = "bucket"'>🪣</button>
+                    </div>
+                </div>
+
+                <div class="tool-section flex-grow-1 pe-2" style="overflow-y: auto;">
+                    <label class="cute-label">Palette IDs</label>
+                    <div class="editor-palette-grid">
+                        @foreach (var color in allColors)
+                        {
+                            int idx = allColors.IndexOf(color);
+                            <div class="swatch-mini @(selectedPaletteIdx == idx ? "active" : "")"
+                                 style="background-color: rgb(@color.R, @color.G, @color.B);"
+                                 @onclick="() => selectedPaletteIdx = idx">
+                                @idx
+                            </div>
+                        }
+                    </div>
+
+                    <div class="mt-4">
+                        <label class="cute-label">New Color</label>
+                        <div class="d-flex gap-2">
+                            <input type="color" class="color-picker-input" @bind="customColor" />
+                            <button class="btn btn-xs btn-info flex-grow-1" @onclick="ApplyCustomColorToSelection">Add</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="editor-footer pt-3 mt-3 border-top border-secondary">
+                    <button class="btn btn-success w-100 mb-2 py-2 fw-bold" @onclick="SaveEditorChanges">Save Changes ✨</button>
+                    <button class="btn btn-outline-danger w-100 btn-sm" @onclick="() => isEditorOpen = false">Cancel</button>
+                </div>
+            </div>
+
+            <div class="editor-canvas-container" @onmousedown="() => isMouseDown = true" @onmousedown:preventDefault>
+                <div class="canvas-grid" style="width: @(zoomLevel)%; grid-template-columns: repeat(@targetWidth, 1fr); aspect-ratio: @targetWidth/@targetHeight;">
+                    @for (int y = 0; y < targetHeight; y++)
+                    {
+                        @for (int x = 0; x < targetWidth; x++)
+                        {
+                            int localX = x; int localY = y;
+                            <div class="canvas-pixel"
+                                 style="background-color: rgb(@(GetPixelColor(localX, localY).R), @(GetPixelColor(localX, localY).G), @(GetPixelColor(localX, localY).B))"
+                                 @onmousedown="() => StartPaint(localX, localY)"
+                                 @onmouseenter="() => ContinuePaint(localX, localY)">
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+            @if (isSaving)
+            {
+                <div class="save-progress-overlay animate-pop">
+                    <div class="save-card glass-card p-5 text-center">
+                        @if (saveProgress < 100)
+                        {
+                            <h3 class="mb-4 text-info fw-bold">Saving...</h3>
+                            <div class="progress mb-3" style="height: 12px; background: rgba(0,0,0,0.5); border-radius: 10px;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" style="width: @saveProgress%"></div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="animate-pop">
+                                <div class="success-icon mb-3">✔️</div>
+                                <h3 class="text-success fw-bold">Done!</h3>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
 <style>
-    /* Layout & Base */
+    /* Global layout */
     .container {
         max-width: 1400px;
     }
@@ -182,9 +257,10 @@
             text-shadow: 0 0 20px rgba(244,114,182,0.6);
         }
 
-    .subtitle {
-        opacity: 0.7;
-        font-size: 1.1rem;
+    .logo-text-small {
+        font-size: 1.5rem;
+        font-weight: 900;
+        color: #38bdf8;
     }
 
     .glass-card {
@@ -195,7 +271,11 @@
         box-shadow: 0 10px 40px rgba(0,0,0,0.3);
     }
 
-    /* Controls Alignment */
+    .shadow-glow {
+        box-shadow: 0 0 25px rgba(56, 189, 248, 0.2);
+    }
+
+    /* Inputs and Buttons */
     .cute-label {
         color: #38bdf8;
         font-size: 0.75rem;
@@ -246,11 +326,11 @@
             font-weight: bold;
         }
 
-    /* ACTION BUTTONS RESTRUCTURE */
+    /* Action Buttons Restored */
     .actions-container {
         display: flex;
         gap: 10px;
-        height: 50px;
+        height: 52px;
     }
 
     .btn-generate {
@@ -289,19 +369,9 @@
         font-size: 0.75rem;
         font-weight: bold;
         cursor: pointer;
-        transition: 0.2s;
     }
 
-        .btn-mini:hover {
-            background: rgba(255,255,255,0.2);
-        }
-
-        .btn-mini:disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-        }
-
-    /* Preview & Palette */
+    /* Preview and Palette */
     .preview-box {
         height: 400px;
         width: 100%;
@@ -311,7 +381,25 @@
         align-items: center;
         justify-content: center;
         overflow: hidden;
+        position: relative;
+        cursor: cell;
         border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .edit-overlay-hint {
+        position: absolute;
+        background: rgba(56, 189, 248, 0.9);
+        color: black;
+        font-weight: bold;
+        padding: 10px 20px;
+        border-radius: 50px;
+        opacity: 0;
+        pointer-events: none;
+        transition: 0.3s;
+    }
+
+    .preview-box:hover .edit-overlay-hint {
+        opacity: 1;
     }
 
     .pixel-img {
@@ -346,7 +434,6 @@
         justify-content: center;
         font-size: 0.7rem;
         font-weight: bold;
-        text-shadow: 1px 1px 2px #000;
     }
 
     .palette-info {
@@ -361,14 +448,7 @@
         text-transform: uppercase;
     }
 
-    /* Pattern Rows & Segments */
-    .seg-val {
-        font-family: 'Courier New', Courier, monospace;
-        font-weight: 900;
-        font-size: 1.3rem;
-        text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 0 8px rgba(255,255,255,0.5);
-    }
-
+    /* Stitching Guide Formatting Restored */
     .row-glass {
         display: flex;
         background: rgba(255,255,255,0.03);
@@ -425,6 +505,13 @@
         text-shadow: 0 0 4px #000;
     }
 
+    .seg-val {
+        font-family: 'Courier New', Courier, monospace;
+        font-weight: 900;
+        font-size: 1.35rem;
+        text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 0 8px rgba(255,255,255,0.5);
+    }
+
     .seg-check {
         position: absolute;
         top: -6px;
@@ -441,6 +528,131 @@
         font-weight: bold;
     }
 
+    /* Editor Overlay Styles */
+    .editor-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(15, 23, 42, 0.96);
+        backdrop-filter: blur(8px);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+
+    .editor-window {
+        width: 100%;
+        max-width: 1250px;
+        height: 90vh;
+        background: #0f172a;
+        border-radius: 30px;
+        display: flex;
+        border: 1px solid rgba(255,255,255,0.1);
+        overflow: hidden;
+    }
+
+    .editor-sidebar {
+        width: 260px;
+        background: rgba(0,0,0,0.4);
+        padding: 25px;
+        border-right: 1px solid rgba(255,255,255,0.05);
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .editor-canvas-container {
+        flex: 1;
+        background: #000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: auto;
+        cursor: crosshair;
+        padding: 40px;
+    }
+
+    .canvas-grid {
+        display: grid;
+        background: #000;
+        user-select: none;
+        border: 0.5px solid #333;
+    }
+
+    .canvas-pixel {
+        width: 100%;
+        height: 100%;
+        border: 0.1px solid rgba(255,255,255,0.03);
+    }
+
+        .canvas-pixel:hover {
+            border: 0.5px solid #fff;
+            z-index: 5;
+        }
+
+    .editor-palette-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+    }
+
+    .swatch-mini {
+        width: 100%;
+        aspect-ratio: 1;
+        border-radius: 6px;
+        cursor: pointer;
+        border: 2px solid transparent;
+        font-size: 0.65rem;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-shadow: 1px 1px 1px #000;
+        color: white;
+    }
+
+        .swatch-mini.active {
+            border-color: #38bdf8;
+            transform: scale(1.05);
+            box-shadow: 0 0 10px #38bdf8;
+        }
+
+    .color-picker-input {
+        width: 45px;
+        height: 35px;
+        border: 1px solid rgba(255,255,255,0.2);
+        background: none;
+        cursor: pointer;
+        border-radius: 5px;
+    }
+
+    .save-progress-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15, 23, 42, 0.92);
+        z-index: 1100;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .save-card {
+        width: 420px;
+        border: 1px solid #38bdf8;
+    }
+
+    .success-icon {
+        font-size: 4rem;
+        animation: bounce 0.6s ease-out;
+    }
+
     .pixel-spinner {
         width: 45px;
         height: 45px;
@@ -455,35 +667,38 @@
         }
     }
 
-    @@keyframes pop {
-        from {
-            transform: scale(0.9);
-            opacity: 0;
+    @@keyframes bounce {
+        0% {
+            transform: scale(0);
         }
 
-        to {
+        70% {
+            transform: scale(1.2);
+        }
+
+        100% {
             transform: scale(1);
-            opacity: 1;
         }
     }
 </style>
 
 @code {
     int targetWidth = 40, targetHeight = 40, colorTolerance = 2;
-    bool isProcessing = false, isOriginalSize = false;
-    bool isTapestryMode = true;
+    bool isProcessing = false, isOriginalSize = false, isTapestryMode = true;
     byte[]? originalImageBytes;
     string? previewBase64 = "";
     List<StitchRow> rows = new();
 
-    public class PaletteColor
-    {
-        public byte R { get; set; }
-        public byte G { get; set; }
-        public byte B { get; set; }
-        public int TotalStitches { get; set; }
-    }
+    // Editor Logic
+    bool isEditorOpen = false, isMouseDown = false, isSaving = false;
+    int saveProgress = 0, zoomLevel = 100, selectedPaletteIdx = 0;
+    int[,] editableGrid = new int[0, 0];
+    string activeTool = "pencil", customColor = "#38bdf8";
+
+    public class PaletteColor { public byte R { get; set; } public byte G { get; set; } public byte B { get; set; } public int TotalStitches { get; set; } }
     List<PaletteColor> allColors = new();
+
+    // --- Core Logic ---
 
     async Task HandleFileSelected(InputFileChangeEventArgs e)
     {
@@ -516,99 +731,105 @@
                 image.Mutate(x => x.Resize(new ResizeOptions { Size = new Size(targetWidth, targetHeight), Mode = ResizeMode.Stretch, Sampler = KnownResamplers.NearestNeighbor }));
             }
 
-            for (int y = 0; y < image.Height; y++)
+            editableGrid = new int[targetWidth, targetHeight];
+            for (int y = 0; y < targetHeight; y++)
             {
-                for (int x = 0; x < image.Width; x++)
+                for (int x = 0; x < targetWidth; x++)
                 {
                     var p = image[x, y];
                     int match = FindBestColorMatch(p.R, p.G, p.B);
                     if (match == -1)
                     {
-                        allColors.Add(new PaletteColor { R = p.R, G = p.G, B = p.B, TotalStitches = 1 });
+                        allColors.Add(new PaletteColor { R = p.R, G = p.G, B = p.B });
+                        match = allColors.Count - 1;
                     }
-                    else
-                    {
-                        allColors[match].TotalStitches++;
-                        var m = allColors[match];
-                        image[x, y] = new Rgba32(m.R, m.G, m.B);
-                    }
+                    editableGrid[x, y] = match;
                 }
             }
-
-            UpdatePreviewUi(image);
-
-            for (int y = 0; y < image.Height; y++)
-            {
-                bool shouldReverse = isTapestryMode && (y % 2 != 0);
-                var row = new StitchRow
-                {
-                    RowNumber = y + 1,
-                    DirectionLabel = shouldReverse ? "Right to Left ←" : (isTapestryMode ? "Left to Right →" : "")
-                };
-
-                List<int> pixelIds = new();
-                for (int x = 0; x < image.Width; x++)
-                {
-                    var p = image[x, y];
-                    pixelIds.Add(allColors.FindIndex(c => c.R == p.R && c.G == p.G && c.B == p.B));
-                }
-                int cur = 0;
-                while (cur < pixelIds.Count)
-                {
-                    int id = pixelIds[cur]; int cnt = 1;
-                    while (cur + 1 < pixelIds.Count && pixelIds[cur + 1] == id) { cnt++; cur++; }
-                    var col = allColors[id];
-                    row.Segments.Add(new ColorSegment { ColorIndex = id, Count = cnt, HexColor = $"rgb({col.R},{col.G},{col.B})", Rgb = (col.R, col.G, col.B) });
-                    cur++;
-                }
-                if (shouldReverse) row.Segments.Reverse();
-                rows.Add(row);
-            }
+            await RebuildInstructions(false);
         }
-        catch (Exception ex) { Console.WriteLine("Generate error: " + ex.Message); }
+        catch { }
         isProcessing = false;
     }
 
-    void UpdatePreviewUi(Image<Rgba32> image)
+    async Task RebuildInstructions(bool withProgress)
     {
-        try
+        rows.Clear();
+        foreach (var c in allColors) c.TotalStitches = 0;
+        int step = Math.Max(1, targetHeight / 10);
+
+        for (int y = 0; y < targetHeight; y++)
         {
-            int zoom = 15;
-            using var zoomed = image.Clone(x => x.Resize(targetWidth * zoom, targetHeight * zoom, KnownResamplers.NearestNeighbor));
-            using var ms = new MemoryStream();
-            zoomed.SaveAsPng(ms);
-            previewBase64 = $"data:image/png;base64,{Convert.ToBase64String(ms.ToArray())}";
+            bool shouldReverse = isTapestryMode && (y % 2 != 0);
+            var row = new StitchRow { RowNumber = y + 1, DirectionLabel = shouldReverse ? "Right to Left ←" : (isTapestryMode ? "Left to Right →" : "") };
+            List<int> pixelIds = new();
+            for (int x = 0; x < targetWidth; x++)
+            {
+                int id = editableGrid[x, y];
+                allColors[id].TotalStitches++;
+                pixelIds.Add(id);
+            }
+            int cur = 0;
+            while (cur < pixelIds.Count)
+            {
+                int id = pixelIds[cur]; int cnt = 1;
+                while (cur + 1 < pixelIds.Count && pixelIds[cur + 1] == id) { cnt++; cur++; }
+                var col = allColors[id];
+                row.Segments.Add(new ColorSegment { ColorIndex = id, Count = cnt, HexColor = $"rgb({col.R},{col.G},{col.B})", Rgb = (col.R, col.G, col.B) });
+                cur++;
+            }
+            if (shouldReverse) row.Segments.Reverse();
+            rows.Add(row);
+            if (withProgress && y % step == 0) { saveProgress = (int)((y / (float)targetHeight) * 100); StateHasChanged(); await Task.Delay(1); }
         }
-        catch { }
+        ReconstructPreview();
     }
 
-    void ReconstructFromData()
+    void ReconstructPreview()
     {
-        if (targetWidth <= 0 || targetHeight <= 0) return;
-        try
-        {
-            foreach (var c in allColors) c.TotalStitches = 0;
-            using var image = new Image<Rgba32>(targetWidth, targetHeight);
-            foreach (var row in rows)
+        if (targetWidth <= 0 || targetHeight <= 0 || !allColors.Any()) return;
+        using var image = new Image<Rgba32>(targetWidth, targetHeight);
+        for (int y = 0; y < targetHeight; y++)
+            for (int x = 0; x < targetWidth; x++)
             {
-                int xOffset = 0;
-                var segments = row.DirectionLabel.Contains("←") ? row.Segments.AsEnumerable().Reverse() : row.Segments;
-                foreach (var seg in segments)
-                {
-                    var col = allColors[seg.ColorIndex];
-                    col.TotalStitches += seg.Count;
-                    for (int i = 0; i < seg.Count; i++)
-                    {
-                        int safeX = Math.Clamp(xOffset++, 0, targetWidth - 1);
-                        int safeY = Math.Clamp(row.RowNumber - 1, 0, targetHeight - 1);
-                        image[safeX, safeY] = new Rgba32(col.R, col.G, col.B);
-                    }
-                }
+                var c = allColors[editableGrid[x, y]];
+                image[x, y] = new Rgba32(c.R, c.G, c.B);
             }
-            UpdatePreviewUi(image);
-        }
-        catch { }
+        int zoom = 15;
+        using var zoomed = image.Clone(x => x.Resize(targetWidth * zoom, targetHeight * zoom, KnownResamplers.NearestNeighbor));
+        using var ms = new MemoryStream();
+        zoomed.SaveAsPng(ms);
+        previewBase64 = $"data:image/png;base64,{Convert.ToBase64String(ms.ToArray())}";
     }
+
+    // --- Interaction Logic ---
+
+    void StartPaint(int x, int y) { isMouseDown = true; PaintPixel(x, y); }
+    void ContinuePaint(int x, int y) { if (isMouseDown && activeTool == "pencil") PaintPixel(x, y); }
+    void PaintPixel(int x, int y)
+    {
+        if (selectedPaletteIdx < 0 || selectedPaletteIdx >= allColors.Count) return;
+        int old = editableGrid[x, y];
+        if (activeTool == "pencil") editableGrid[x, y] = selectedPaletteIdx;
+        else if (activeTool == "bucket")
+        {
+            for (int ly = 0; ly < targetHeight; ly++)
+                for (int lx = 0; lx < targetWidth; lx++)
+                    if (editableGrid[lx, ly] == old) editableGrid[lx, ly] = selectedPaletteIdx;
+        }
+    }
+
+    async Task SaveEditorChanges()
+    {
+        isSaving = true; saveProgress = 0; StateHasChanged();
+        await RebuildInstructions(true);
+        saveProgress = 100; StateHasChanged();
+        await Task.Delay(800);
+        isSaving = false; isEditorOpen = false;
+    }
+
+    void ApplyCustomColorToSelection() { try { var color = Rgba32.ParseHex(customColor); allColors.Add(new PaletteColor { R = color.R, G = color.G, B = color.B }); selectedPaletteIdx = allColors.Count - 1; } catch { } }
+    void OpenEditor() { if (rows?.Any() == true) { zoomLevel = 100; isEditorOpen = true; } }
 
     int FindBestColorMatch(byte r, byte g, byte b)
     {
@@ -623,15 +844,10 @@
 
     async Task ExportProject()
     {
-        try
-        {
-            var now = DateTime.Now;
-            string defaultName = $"Stitcherina_{now:yyyy-MM-dd_HH-mm-ss}.json";
-            var state = new { Width = targetWidth, Height = targetHeight, Tolerance = colorTolerance, Mode = isTapestryMode, Palette = allColors, Rows = rows };
-            var json = JsonSerializer.Serialize(state);
-            await JS.InvokeVoidAsync("downloadFile", defaultName, Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(json)));
-        }
-        catch { }
+        var now = DateTime.Now;
+        string defaultName = $"Stitcherina_{now:yyyy-MM-dd_HH-mm-ss}.json";
+        var state = new { Width = targetWidth, Height = targetHeight, Tolerance = colorTolerance, Mode = isTapestryMode, Palette = allColors, Rows = rows };
+        await JS.InvokeVoidAsync("downloadFile", defaultName, Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(state))));
     }
 
     async Task ImportProject(InputFileChangeEventArgs e)
@@ -639,35 +855,31 @@
         isProcessing = true; StateHasChanged();
         try
         {
-            using var stream = e.File.OpenReadStream(maxAllowedSize: 1024 * 1024 * 5);
-            using var reader = new StreamReader(stream);
-            var json = await reader.ReadToEndAsync();
-            var doc = JsonDocument.Parse(json).RootElement;
+            using var reader = new StreamReader(e.File.OpenReadStream());
+            var doc = JsonDocument.Parse(await reader.ReadToEndAsync()).RootElement;
             targetWidth = doc.GetProperty("Width").GetInt32();
             targetHeight = doc.GetProperty("Height").GetInt32();
             colorTolerance = doc.GetProperty("Tolerance").GetInt32();
-            if (doc.TryGetProperty("Mode", out var modeProp)) isTapestryMode = modeProp.GetBoolean();
-            allColors = JsonSerializer.Deserialize<List<PaletteColor>>(doc.GetProperty("Palette").GetRawText()) ?? new();
-            rows = JsonSerializer.Deserialize<List<StitchRow>>(doc.GetProperty("Rows").GetRawText()) ?? new();
-            ReconstructFromData();
+            if (doc.TryGetProperty("Mode", out var m)) isTapestryMode = m.GetBoolean();
+            allColors = JsonSerializer.Deserialize<List<PaletteColor>>(doc.GetProperty("Palette").GetRawText())!;
+            rows = JsonSerializer.Deserialize<List<StitchRow>>(doc.GetProperty("Rows").GetRawText())!;
+            editableGrid = new int[targetWidth, targetHeight];
+            foreach (var row in rows)
+            {
+                int xOffset = 0;
+                var segments = row.DirectionLabel.Contains("←") ? row.Segments.AsEnumerable().Reverse() : row.Segments;
+                foreach (var seg in segments)
+                    for (int i = 0; i < seg.Count; i++)
+                        editableGrid[xOffset++, row.RowNumber - 1] = seg.ColorIndex;
+            }
+            ReconstructPreview();
         }
-        catch (Exception ex) { Console.WriteLine("Import error: " + ex.Message); }
+        catch { }
         isProcessing = false;
-        StateHasChanged();
     }
 
-    void ToggleSegment(StitchRow row, ColorSegment segment)
-    {
-        segment.IsStitched = !segment.IsStitched;
-        row.IsCompleted = row.Segments.All(s => s.IsStitched);
-    }
-
-    void ToggleRowManual(StitchRow row, ChangeEventArgs args)
-    {
-        bool val = (bool)(args.Value ?? false);
-        row.IsCompleted = val;
-        foreach (var s in row.Segments) s.IsStitched = val;
-    }
-
+    PaletteColor GetPixelColor(int x, int y) => allColors[editableGrid[x, y]];
+    void ToggleSegment(StitchRow row, ColorSegment segment) { segment.IsStitched = !segment.IsStitched; row.IsCompleted = row.Segments.All(s => s.IsStitched); }
+    void ToggleRowManual(StitchRow row, ChangeEventArgs args) { bool val = (bool)(args.Value ?? false); row.IsCompleted = val; foreach (var s in row.Segments) s.IsStitched = val; }
     void ClearAll() { rows.Clear(); allColors.Clear(); previewBase64 = ""; originalImageBytes = null; isOriginalSize = false; }
 }
