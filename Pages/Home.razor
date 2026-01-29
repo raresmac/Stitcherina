@@ -10,13 +10,13 @@
 <div class="app-container" @onmouseup="() => isMouseDown = false">
     <div class="container py-5">
 
-        <!-- Header -->
+        <!-- 1. HEADER SECTION -->
         <div class="header-glass mb-5 text-center animate-pop">
             <h1 class="logo-text">Stitcherina <span>✨</span></h1>
-            <p class="subtitle">Pixel-perfect patterns with a pro editor.</p>
+            <p class="subtitle">Pixel-perfect patterns for smart stitchers.</p>
         </div>
 
-        <!-- Configuration & Controls -->
+        <!-- 2. CONFIGURATION & ACTIONS -->
         <div class="glass-card mb-5 p-4 animate-slide-up">
             <div class="row g-4 align-items-center">
                 <div class="col-xl-2 col-md-4">
@@ -59,25 +59,24 @@
         {
             <div class="loader-wrap">
                 <div class="pixel-spinner"></div>
-                <p>Processing pixels...</p>
+                <p>Weaving your threads...</p>
             </div>
         }
         else if (rows != null && rows.Any() && !string.IsNullOrEmpty(previewBase64))
         {
+            <!-- 3. PREVIEW & PALETTE -->
             <div class="row g-4 mb-5">
-                <!-- Preview -->
                 <div class="col-lg-5">
-                    <div class="glass-card h-100 p-3">
-                        <div class="card-header-cute mb-1 text-center">Pattern Preview</div>
-                        <p class="ultra-small text-muted mb-3 text-center">Click the image to edit pixels ✨</p>
+                    <div class="glass-card h-100 p-3 text-center">
+                        <div class="card-header-cute mb-1">Pattern Preview</div>
+                        <p class="ultra-small text-muted mb-3">Click the image to edit ✨</p>
                         <div class="preview-box clickable shadow-glow" @onclick="OpenEditor">
-                            <img src="@previewBase64" class="pixel-img" alt="Click to edit" />
+                            <img src="@previewBase64" class="pixel-img" alt="Stitcherina preview" />
                             <div class="edit-overlay-hint">Open Editor</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Palette -->
                 <div class="col-lg-7">
                     <div class="glass-card h-100 p-3">
                         <div class="card-header-cute d-flex justify-content-between align-items-center mb-3">
@@ -104,6 +103,7 @@
                 </div>
             </div>
 
+            <!-- 4. STITCHING GUIDE -->
             <div class="pattern-section animate-slide-up">
                 <h3 class="section-title mb-4 text-center">Stitching Guide</h3>
                 @foreach (var row in rows)
@@ -141,17 +141,17 @@
     </div>
 </div>
 
-<!-- EDITOR OVERLAY -->
+<!-- 5. EDITOR OVERLAY -->
 @if (isEditorOpen)
 {
-    <div class="editor-backdrop animate-pop" @onmouseup="() => isMouseDown = false">
-        <div class="editor-window shadow-glow">
+    <div class="editor-backdrop animate-pop" @onmouseup="() => isMouseDown = false" @onclick="HandleBackdropClick">
+        <div class="editor-window shadow-glow" @onclick:stopPropagation>
             <div class="editor-sidebar">
                 <h4 class="logo-text-small mb-1">Pixel Editor</h4>
 
                 <div class="tool-section mb-4 mt-3">
-                    <label class="cute-label">Zoom: @(zoomLevel)%</label>
-                    <input type="range" class="cute-range" min="10" max="500" @bind="zoomLevel" />
+                    <label class="cute-label">Zoom: @(zoomSteps[zoomIndex] / 100.0)x</label>
+                    <input type="range" class="cute-range" min="0" max="6" step="1" @bind="zoomIndex" />
                 </div>
 
                 <div class="tool-section mb-4">
@@ -163,21 +163,24 @@
                 </div>
 
                 <div class="tool-section flex-grow-1 pe-2" style="overflow-y: auto;">
-                    <label class="cute-label">Palette IDs</label>
-                    <div class="editor-palette-grid">
+                    <label class="cute-label">Select Palette ID</label>
+                    <div class="editor-palette-list">
                         @foreach (var color in allColors)
                         {
                             int idx = allColors.IndexOf(color);
-                            <div class="swatch-mini @(selectedPaletteIdx == idx ? "active" : "")"
-                                 style="background-color: rgb(@color.R, @color.G, @color.B);"
-                                 @onclick="() => selectedPaletteIdx = idx">
-                                @idx
+                            <div class="palette-pill mb-2 @(selectedPaletteIdx == idx ? "active-border" : "")" @onclick="() => selectedPaletteIdx = idx" style="cursor: pointer;">
+                                <div class="swatch swatch-sm" style="background-color: rgb(@color.R, @color.G, @color.B);">
+                                    <span>@idx</span>
+                                </div>
+                                <div class="palette-info">
+                                    <code class="small">#@color.R.ToString("X2")@color.G.ToString("X2")@color.B.ToString("X2")</code>
+                                </div>
                             </div>
                         }
                     </div>
 
                     <div class="mt-4">
-                        <label class="cute-label">New Color</label>
+                        <label class="cute-label">Add New Color</label>
                         <div class="d-flex gap-2">
                             <input type="color" class="color-picker-input" @bind="customColor" />
                             <button class="btn btn-xs btn-info flex-grow-1" @onclick="ApplyCustomColorToSelection">Add</button>
@@ -187,12 +190,12 @@
 
                 <div class="editor-footer pt-3 mt-3 border-top border-secondary">
                     <button class="btn btn-success w-100 mb-2 py-2 fw-bold" @onclick="SaveEditorChanges">Save Changes ✨</button>
-                    <button class="btn btn-outline-danger w-100 btn-sm" @onclick="() => isEditorOpen = false">Cancel</button>
+                    <button class="btn btn-outline-danger w-100 btn-sm" @onclick="CancelEditor">Cancel</button>
                 </div>
             </div>
 
             <div class="editor-canvas-container" @onmousedown="() => isMouseDown = true" @onmousedown:preventDefault>
-                <div class="canvas-grid" style="width: @(zoomLevel)%; grid-template-columns: repeat(@targetWidth, 1fr); aspect-ratio: @targetWidth/@targetHeight;">
+                <div class="canvas-grid" style="width: @(zoomSteps[zoomIndex])%; grid-template-columns: repeat(@targetWidth, 1fr); aspect-ratio: @targetWidth/@targetHeight;">
                     @for (int y = 0; y < targetHeight; y++)
                     {
                         @for (int x = 0; x < targetWidth; x++)
@@ -212,19 +215,13 @@
             {
                 <div class="save-progress-overlay animate-pop">
                     <div class="save-card glass-card p-5 text-center">
-                        @if (saveProgress < 100)
+                        <h3 class="mb-4 text-info fw-bold">Saving...</h3>
+                        <div class="progress mb-3" style="height: 12px; background: rgba(0,0,0,0.5); border-radius: 10px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" style="width: @saveProgress%"></div>
+                        </div>
+                        @if (saveProgress >= 100)
                         {
-                            <h3 class="mb-4 text-info fw-bold">Saving...</h3>
-                            <div class="progress mb-3" style="height: 12px; background: rgba(0,0,0,0.5); border-radius: 10px;">
-                                <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" style="width: @saveProgress%"></div>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="animate-pop">
-                                <div class="success-icon mb-3">✔️</div>
-                                <h3 class="text-success fw-bold">Done!</h3>
-                            </div>
+                            <div class="text-success mt-2">Done! ✨</div>
                         }
                     </div>
                 </div>
@@ -234,7 +231,7 @@
 }
 
 <style>
-    /* Global layout */
+    /* 1. Global & Home Layout */
     .container {
         max-width: 1400px;
     }
@@ -271,11 +268,7 @@
         box-shadow: 0 10px 40px rgba(0,0,0,0.3);
     }
 
-    .shadow-glow {
-        box-shadow: 0 0 25px rgba(56, 189, 248, 0.2);
-    }
-
-    /* Inputs and Buttons */
+    /* Controls Alignment */
     .cute-label {
         color: #38bdf8;
         font-size: 0.75rem;
@@ -326,7 +319,7 @@
             font-weight: bold;
         }
 
-    /* Action Buttons Restored */
+    /* Action Buttons Stack */
     .actions-container {
         display: flex;
         gap: 10px;
@@ -369,9 +362,10 @@
         font-size: 0.75rem;
         font-weight: bold;
         cursor: pointer;
+        transition: 0.2s;
     }
 
-    /* Preview and Palette */
+    /* Main Preview & Palette */
     .preview-box {
         height: 400px;
         width: 100%;
@@ -422,10 +416,16 @@
         padding: 8px;
         display: flex;
         align-items: center;
+        transition: 0.2s;
     }
 
+        .palette-pill.active-border {
+            border-color: #38bdf8;
+            background: rgba(56, 189, 248, 0.1);
+        }
+
     .swatch {
-        min-width: 32px;
+        width: 32px;
         height: 32px;
         border-radius: 50%;
         border: 2px solid #fff;
@@ -434,6 +434,13 @@
         justify-content: center;
         font-size: 0.7rem;
         font-weight: bold;
+        text-shadow: 1px 1px 2px #000;
+    }
+
+    .swatch-sm {
+        width: 28px;
+        height: 28px;
+        font-size: 0.6rem;
     }
 
     .palette-info {
@@ -448,7 +455,7 @@
         text-transform: uppercase;
     }
 
-    /* Stitching Guide Formatting Restored */
+    /* Stitching Guide Visibility */
     .row-glass {
         display: flex;
         background: rgba(255,255,255,0.03);
@@ -492,11 +499,6 @@
         position: relative;
     }
 
-        .seg-pill.active {
-            background: rgba(56, 189, 248, 0.2);
-            border-color: #38bdf8;
-        }
-
     .seg-id {
         font-size: 0.65rem;
         font-weight: 900;
@@ -528,7 +530,7 @@
         font-weight: bold;
     }
 
-    /* Editor Overlay Styles */
+    /* EDITOR LAYOUT */
     .editor-backdrop {
         position: fixed;
         top: 0;
@@ -547,7 +549,7 @@
     .editor-window {
         width: 100%;
         max-width: 1250px;
-        height: 90vh;
+        height: 92vh;
         background: #0f172a;
         border-radius: 30px;
         display: flex;
@@ -568,19 +570,19 @@
     .editor-canvas-container {
         flex: 1;
         background: #000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        display: block;
         overflow: auto;
         cursor: crosshair;
-        padding: 40px;
+        padding: 150px 100px;
+        text-align: center;
     }
 
     .canvas-grid {
-        display: grid;
+        display: inline-grid;
         background: #000;
         user-select: none;
         border: 0.5px solid #333;
+        vertical-align: middle;
     }
 
     .canvas-pixel {
@@ -592,33 +594,6 @@
         .canvas-pixel:hover {
             border: 0.5px solid #fff;
             z-index: 5;
-        }
-
-    .editor-palette-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 6px;
-    }
-
-    .swatch-mini {
-        width: 100%;
-        aspect-ratio: 1;
-        border-radius: 6px;
-        cursor: pointer;
-        border: 2px solid transparent;
-        font-size: 0.65rem;
-        font-weight: bold;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-shadow: 1px 1px 1px #000;
-        color: white;
-    }
-
-        .swatch-mini.active {
-            border-color: #38bdf8;
-            transform: scale(1.05);
-            box-shadow: 0 0 10px #38bdf8;
         }
 
     .color-picker-input {
@@ -643,16 +618,6 @@
         justify-content: center;
     }
 
-    .save-card {
-        width: 420px;
-        border: 1px solid #38bdf8;
-    }
-
-    .success-icon {
-        font-size: 4rem;
-        animation: bounce 0.6s ease-out;
-    }
-
     .pixel-spinner {
         width: 45px;
         height: 45px;
@@ -666,20 +631,6 @@
             transform: rotate(360deg);
         }
     }
-
-    @@keyframes bounce {
-        0% {
-            transform: scale(0);
-        }
-
-        70% {
-            transform: scale(1.2);
-        }
-
-        100% {
-            transform: scale(1);
-        }
-    }
 </style>
 
 @code {
@@ -690,8 +641,9 @@
     List<StitchRow> rows = new();
 
     // Editor Logic
-    bool isEditorOpen = false, isMouseDown = false, isSaving = false;
-    int saveProgress = 0, zoomLevel = 100, selectedPaletteIdx = 0;
+    bool isEditorOpen = false, isMouseDown = false, isSaving = false, isDirty = false;
+    int saveProgress = 0, zoomIndex = 3, selectedPaletteIdx = 0;
+    int[] zoomSteps = { 10, 25, 50, 100, 200, 400, 800 };
     int[,] editableGrid = new int[0, 0];
     string activeTool = "pencil", customColor = "#38bdf8";
 
@@ -710,7 +662,7 @@
             originalImageBytes = ms.ToArray();
             await GeneratePattern();
         }
-        catch (Exception ex) { Console.WriteLine("Selection error: " + ex.Message); }
+        catch { }
     }
 
     async Task GeneratePattern()
@@ -718,34 +670,21 @@
         if (originalImageBytes == null) return;
         isProcessing = true; StateHasChanged();
         await Task.Delay(200);
-
         try
         {
             rows.Clear(); allColors.Clear();
             using var image = Image.Load<Rgba32>(originalImageBytes);
-
-            if (image.Width == targetWidth && image.Height == targetHeight) isOriginalSize = true;
-            else
-            {
-                isOriginalSize = false;
+            if (image.Width != targetWidth || image.Height != targetHeight)
                 image.Mutate(x => x.Resize(new ResizeOptions { Size = new Size(targetWidth, targetHeight), Mode = ResizeMode.Stretch, Sampler = KnownResamplers.NearestNeighbor }));
-            }
-
             editableGrid = new int[targetWidth, targetHeight];
             for (int y = 0; y < targetHeight; y++)
-            {
                 for (int x = 0; x < targetWidth; x++)
                 {
                     var p = image[x, y];
                     int match = FindBestColorMatch(p.R, p.G, p.B);
-                    if (match == -1)
-                    {
-                        allColors.Add(new PaletteColor { R = p.R, G = p.G, B = p.B });
-                        match = allColors.Count - 1;
-                    }
+                    if (match == -1) { allColors.Add(new PaletteColor { R = p.R, G = p.G, B = p.B }); match = allColors.Count - 1; }
                     editableGrid[x, y] = match;
                 }
-            }
             await RebuildInstructions(false);
         }
         catch { }
@@ -757,18 +696,12 @@
         rows.Clear();
         foreach (var c in allColors) c.TotalStitches = 0;
         int step = Math.Max(1, targetHeight / 10);
-
         for (int y = 0; y < targetHeight; y++)
         {
             bool shouldReverse = isTapestryMode && (y % 2 != 0);
             var row = new StitchRow { RowNumber = y + 1, DirectionLabel = shouldReverse ? "Right to Left ←" : (isTapestryMode ? "Left to Right →" : "") };
             List<int> pixelIds = new();
-            for (int x = 0; x < targetWidth; x++)
-            {
-                int id = editableGrid[x, y];
-                allColors[id].TotalStitches++;
-                pixelIds.Add(id);
-            }
+            for (int x = 0; x < targetWidth; x++) { int id = editableGrid[x, y]; allColors[id].TotalStitches++; pixelIds.Add(id); }
             int cur = 0;
             while (cur < pixelIds.Count)
             {
@@ -802,7 +735,7 @@
         previewBase64 = $"data:image/png;base64,{Convert.ToBase64String(ms.ToArray())}";
     }
 
-    // --- Interaction Logic ---
+    // --- Paint Logic ---
 
     void StartPaint(int x, int y) { isMouseDown = true; PaintPixel(x, y); }
     void ContinuePaint(int x, int y) { if (isMouseDown && activeTool == "pencil") PaintPixel(x, y); }
@@ -810,6 +743,8 @@
     {
         if (selectedPaletteIdx < 0 || selectedPaletteIdx >= allColors.Count) return;
         int old = editableGrid[x, y];
+        if (old == selectedPaletteIdx) return;
+        isDirty = true;
         if (activeTool == "pencil") editableGrid[x, y] = selectedPaletteIdx;
         else if (activeTool == "bucket")
         {
@@ -822,14 +757,45 @@
     async Task SaveEditorChanges()
     {
         isSaving = true; saveProgress = 0; StateHasChanged();
+        var usedIndices = new HashSet<int>();
+        for (int y = 0; y < targetHeight; y++)
+            for (int x = 0; x < targetWidth; x++) usedIndices.Add(editableGrid[x, y]);
+        var newPalette = new List<PaletteColor>();
+        var indexMap = new Dictionary<int, int>();
+        for (int i = 0; i < allColors.Count; i++)
+        {
+            if (usedIndices.Contains(i)) { indexMap[i] = newPalette.Count; newPalette.Add(allColors[i]); }
+        }
+        allColors = newPalette;
+        for (int y = 0; y < targetHeight; y++)
+            for (int x = 0; x < targetWidth; x++) editableGrid[x, y] = indexMap[editableGrid[x, y]];
         await RebuildInstructions(true);
-        saveProgress = 100; StateHasChanged();
-        await Task.Delay(800);
-        isSaving = false; isEditorOpen = false;
+        saveProgress = 100; StateHasChanged(); await Task.Delay(600);
+        isSaving = false; isDirty = false; await ToggleScroll(true); isEditorOpen = false;
     }
 
-    void ApplyCustomColorToSelection() { try { var color = Rgba32.ParseHex(customColor); allColors.Add(new PaletteColor { R = color.R, G = color.G, B = color.B }); selectedPaletteIdx = allColors.Count - 1; } catch { } }
-    void OpenEditor() { if (rows?.Any() == true) { zoomLevel = 100; isEditorOpen = true; } }
+    // --- Interaction ---
+
+    async Task HandleBackdropClick()
+    {
+        if (isSaving) return;
+        if (isDirty)
+        {
+            bool confirm = await JS.InvokeAsync<bool>("confirm", "Unsaved changes! Save before closing?");
+            if (confirm) await SaveEditorChanges();
+            else await CancelEditor();
+        }
+        else await CancelEditor();
+    }
+
+    async Task CancelEditor() { isEditorOpen = false; isDirty = false; await ToggleScroll(true); }
+
+    async Task OpenEditor()
+    {
+        if (rows?.Any() == true) { zoomIndex = 3; isDirty = false; await ToggleScroll(false); isEditorOpen = true; }
+    }
+
+    async Task ToggleScroll(bool enable) => await JS.InvokeVoidAsync("eval", $"document.body.style.overflow = '{(enable ? "auto" : "hidden")}'");
 
     int FindBestColorMatch(byte r, byte g, byte b)
     {
@@ -845,9 +811,9 @@
     async Task ExportProject()
     {
         var now = DateTime.Now;
-        string defaultName = $"Stitcherina_{now:yyyy-MM-dd_HH-mm-ss}.json";
+        string name = $"Stitcherina_{now:yyyy-MM-dd_HH-mm-ss}.json";
         var state = new { Width = targetWidth, Height = targetHeight, Tolerance = colorTolerance, Mode = isTapestryMode, Palette = allColors, Rows = rows };
-        await JS.InvokeVoidAsync("downloadFile", defaultName, Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(state))));
+        await JS.InvokeVoidAsync("downloadFile", name, Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(state))));
     }
 
     async Task ImportProject(InputFileChangeEventArgs e)
@@ -878,6 +844,7 @@
         isProcessing = false;
     }
 
+    void ApplyCustomColorToSelection() { try { var color = Rgba32.ParseHex(customColor); allColors.Add(new PaletteColor { R = color.R, G = color.G, B = color.B }); selectedPaletteIdx = allColors.Count - 1; isDirty = true; } catch { } }
     PaletteColor GetPixelColor(int x, int y) => allColors[editableGrid[x, y]];
     void ToggleSegment(StitchRow row, ColorSegment segment) { segment.IsStitched = !segment.IsStitched; row.IsCompleted = row.Segments.All(s => s.IsStitched); }
     void ToggleRowManual(StitchRow row, ChangeEventArgs args) { bool val = (bool)(args.Value ?? false); row.IsCompleted = val; foreach (var s in row.Segments) s.IsStitched = val; }
