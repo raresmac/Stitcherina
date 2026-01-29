@@ -11,10 +11,12 @@
 *   **Interactive Pixel Editor ✏️**
     Found a pixel that doesn't look right? Click the preview to open the built-in editor! Use the **Pencil** tool to paint individual stitches or the **Bucket** tool to recolor every instance of a thread color globally.
 
-![Stitcherina Screenshot](wwwroot/Canvas.webp)
+![Stitcherina Screenshot](wwwroot/description/desc1.gif)
 
 *   **Precision Zoom 🔍**
     Get up close and personal with your design. Our new zoom system lets you scale your canvas from **0.1x all the way to 8x**, ensuring you never miss a single detail.
+
+![Stitcherina Screenshot](wwwroot/description/desc2.gif)
 
 *   **Magic Pixelation ✨**
     Upload any photo and watch it transform into a perfect grid. If you upload existing pixel art, we’ll keep it crisp and preserve the original quality without any distortion.
@@ -22,12 +24,16 @@
 *   **Smart Palette & Color Merging 🎨**
     Too many shades of red? Use the **Color Merge** slider to gently simplify your thread list. After editing, Stitcherina automatically cleans up your palette, removing any unused colors.
 
+![Stitcherina Screenshot](wwwroot/description/desc4.gif)
+
 *   **Two Ways to Stitch 🧶**
     *   **Tapestry Mode:** Perfect for those who weave back and forth (Left-to-Right then Right-to-Left).
     *   **Cross-Stitch Mode:** For a classic, consistent Left-to-Right journey.
 
 *   **Never Lose Your Spot 📍**
     Click on individual color blocks to mark them as "stitched," or check off entire rows. Row progress is automatically tracked as you click!
+	
+![Stitcherina Screenshot](wwwroot/description/desc6.gif)
 
 *   **Save & Resume 💾**
     Export your entire project (including progress and edits) as a tiny `.json` file, or save a high-quality **PNG image** of your pattern to share or print.
