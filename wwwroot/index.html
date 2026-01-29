@@ -30,12 +30,23 @@
     </div>
     <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
     <script>
-        window.downloadFile = (defaultName, base64) => {
-            const fileName = prompt("Enter a name for your project file:", defaultName);
+        window.downloadFile = (defaultName, content, isImage = false) => {
+            let fileName = prompt("Enter a name for your file:", defaultName);
             if (fileName === null) return;
+
+            // Smart extension handling
+            const extension = isImage ? ".png" : ".json";
+            if (!fileName.toLowerCase().endsWith(extension)) {
+                fileName += extension;
+            }
+
             const link = document.createElement('a');
-            link.download = fileName.endsWith('.json') ? fileName : fileName + '.json';
-            link.href = 'data:application/json;base64,' + base64;
+            link.download = fileName;
+
+            // If it's an image, content is already a data:image/png;base64,... string
+            // If it's JSON, we wrap the raw base64 string
+            link.href = isImage ? content : 'data:application/json;base64,' + content;
+
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
